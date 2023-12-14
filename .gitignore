@@ -34,3 +34,4 @@ override.tf.json
 terraform.rc
 
 node_modules
+test_service.zip
