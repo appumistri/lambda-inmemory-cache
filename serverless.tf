@@ -8,8 +8,8 @@ terraform {
 }
 
 provider "aws" {
-  region  = "ap-south-1"
-  profile = "appu"
+  region  = var.region
+  profile = var.profile
 }
 
 ## S3 ##
@@ -20,7 +20,7 @@ provider "aws" {
 # }
 
 resource "aws_s3_bucket" "lambda_bucket" {
-  bucket = "appu-test-lambda-bucket-dev"
+  bucket = "appu-test-lambda-bucket-${var.stage}"
 }
 
 resource "aws_s3_bucket_ownership_controls" "lambda_bucket" {
@@ -56,7 +56,7 @@ resource "aws_s3_object" "lambda_hello_world" {
 }
 
 resource "aws_lambda_function" "hello_world" {
-  function_name = "test-lambda-1"
+  function_name = "test-lambda-${var.stage}"
 
   s3_bucket = aws_s3_bucket.lambda_bucket.id
   s3_key    = aws_s3_object.lambda_hello_world.key
@@ -76,7 +76,7 @@ resource "aws_cloudwatch_log_group" "hello_world" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "test-lambda-1-role"
+  name = "test-lambda-role-${var.stage}"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -127,7 +127,7 @@ resource "aws_lambda_permission" "lambda_permission" {
 ## cloudwatch schedule event ##
 
 resource "aws_scheduler_schedule" "lambda_warmer" {
-  name       = "test-lambda-warmer-1"
+  name       = "test-lambda-warmer-${var.stage}"
   group_name = "default"
 
   flexible_time_window {
@@ -148,7 +148,7 @@ resource "aws_scheduler_schedule" "lambda_warmer" {
 ## API Gateway ##
 
 resource "aws_api_gateway_rest_api" "test_api" {
-  name = "test-api-1"
+  name = "test-api-${var.stage}"
   endpoint_configuration {
     types = ["REGIONAL"]
   }
@@ -156,7 +156,7 @@ resource "aws_api_gateway_rest_api" "test_api" {
 
 resource "aws_api_gateway_resource" "apig" {
   parent_id   = aws_api_gateway_rest_api.test_api.root_resource_id
-  path_part   = "test"
+  path_part   = var.stage
   rest_api_id = aws_api_gateway_rest_api.test_api.id
 }
 
@@ -192,6 +192,7 @@ resource "aws_api_gateway_deployment" "apig_deploy" {
       aws_api_gateway_resource.apig.id,
       aws_api_gateway_method.apig_method.id,
       aws_api_gateway_integration.apig_intg.id,
+      aws_api_gateway_resource.apig.path_part
     ]))
   }
 
@@ -203,5 +204,9 @@ resource "aws_api_gateway_deployment" "apig_deploy" {
 resource "aws_api_gateway_stage" "apig_stage" {
   deployment_id = aws_api_gateway_deployment.apig_deploy.id
   rest_api_id   = aws_api_gateway_rest_api.test_api.id
-  stage_name    = "dev"
+  stage_name    = var.stage
+}
+
+output "api_invoke_url" {
+  value = aws_api_gateway_stage.apig_stage.invoke_url
 }
