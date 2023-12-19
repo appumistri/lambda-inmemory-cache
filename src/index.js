@@ -1,12 +1,6 @@
 'use strict';
 
-const NodeCache = require("node-cache");
-let myCache;
-
-if (!myCache) {
-    myCache = new NodeCache({ stdTTL: 600, checkperiod: 60, maxKeys: 5000 });
-}
-
+require('./cache');
 
 module.exports.handler = async (event, context) => {
     console.log(JSON.stringify(event));
